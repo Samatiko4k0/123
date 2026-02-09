@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Order System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1000px; margin: auto; }
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 20px; 
+            padding: 15px; 
+            background: white; 
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tabs { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 20px; 
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .tab { 
+            padding: 10px 20px; 
+            cursor: pointer; 
+            border-radius: 4px;
+        }
+        .tab.active { 
+            background: #4361ee; 
+            color: white;
+        }
+        .content { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .card { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 6px;
+            border-left: 4px solid #4361ee;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 15px;
+        }
+        th, td { 
+            padding: 12px; 
+            text-align: left; 
+            border-bottom: 1px solid #ddd;
+        }
+        th { 
+            background: #f1f3f5; 
+            font-weight: bold;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 2px;
+        }
+        .btn-primary { background: #4361ee; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .form-group { margin: 15px 0; }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            min-width: 400px;
+        }
+        .role-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: white;
+            display: inline-block;
+            margin: 0 5px;
+        }
+        .role-admin { background: #dc3545; }
+        .role-manager { background: #fd7e14; }
+        .role-client { background: #4361ee; }
+        .role-analyst { background: #28a745; }
+        .status { padding: 4px 8px; border-radius: 12px; font-size: 12px; }
+        .status-new { background: #ffc107; }
+        .status-processing { background: #17a2b8; }
+        .status-done { background: #28a745; color: white; }
+        .status-cancelled { background: #6c757d; color: white; }
+        .stats { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 15px; 
+            margin: 20px 0;
+        }
+        .stat-card { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 8px; 
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-value { font-size: 24px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Шапка -->
+        <div class="header">
+            <h2>HarmoniQ</h2>
+            <div>
+                <span id="userRole" class="role-badge role-admin">Администратор</span>
+                <button class="btn btn-primary" onclick="showRoleSelector()">Сменить аккаунт</button>
+            </div>
+        </div>
+
+        <!-- Навигация -->
+        <div class="tabs" id="tabs"></div>
+
+        <!-- Основной контент -->
+        <div class="content" id="content"></div>
+    </div>
+
+    <!-- Модальное окно смены роли -->
+    <div class="modal" id="roleModal">
+        <div class="modal-content">
+            <h3>Выберите роль пользователя</h3>
+            <div style="margin: 20px 0;">
+                <button class="btn btn-danger" onclick="setRole('admin')">Администратор</button>
+                <button class="btn btn-warning" style="background:#fd7e14;color:white" onclick="setRole('manager')">Менеджер</button>
+                <button class="btn btn-primary" onclick="setRole('client')">Клиент</button>
+                <button class="btn btn-success" onclick="setRole('analyst')">Аналитик</button>
+            </div>
+            <button class="btn" onclick="closeModal()" style="background:#6c757d;color:white">Закрыть</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения -->
+    <div class="modal" id="confirmModal">
+        <div class="modal-content">
+            <h3 id="confirmTitle">Подтверждение</h3>
+            <p id="confirmMessage"></p>
+            <div style="margin-top: 20px; text-align: right;">
+                <button class="btn" onclick="closeModal()" style="background:#6c757d;color:white">Отмена</button>
+                <button class="btn btn-danger" id="confirmActionBtn">Подтвердить</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Данные приложения
+        let currentRole = 'admin';
+        let currentTab = 'dashboard';
+        let orders = [
+            { id: 1, client: "Исмаилов Максим", product: "Ноутбук", status: "new", date: "2024-01-15", price: 75000 },
+            { id: 2, client: "Жилин Кирилл", product: "Смартфон", status: "processing", date: "2024-01-14", price: 45000 },
+            { id: 3, client: "Ермаков Артем", product: "Планшет", status: "done", date: "2024-01-10", price: 32000 },
+            { id: 4, client: "Енюшина Мария", product: "Наушники", status: "cancelled", date: "2024-01-12", price: 12000 }
+        ];
+
+        let users = [
+            { id: 1, name: "Админ Админов", role: "admin", email: "admin@mail.com" },
+            { id: 2, name: "Менеджер Менеджеров", role: "manager", email: "manager@mail.com" },
+            { id: 3, name: "Иванов Иван", role: "client", email: "client@mail.com" },
+            { id: 4, name: "Аналитик Аналитиков", role: "analyst", email: "analyst@mail.com" }
+        ];
+
+        // Роли и их доступные вкладки
+        const roles = {
+            admin: ['dashboard', 'orders', 'users', 'settings'],
+            manager: ['dashboard', 'orders', 'clients', 'reports'],
+            client: ['dashboard', 'my-orders', 'catalog', 'profile'],
+            analyst: ['dashboard', 'reports', 'analytics']
+        };
+
+        // Названия вкладок
+        const tabNames = {
+            dashboard: 'Дашборд',
+            orders: 'Заказы',
+            users: 'Пользователи',
+            settings: 'Настройки',
+            clients: 'Клиенты',
+            reports: 'Отчеты',
+            'my-orders': 'Мои заказы',
+            catalog: 'Каталог',
+            profile: 'Профиль',
+            analytics: 'Аналитика'
+        };
+
+        // Инициализация
+        function init() {
+            renderTabs();
+            renderContent();
+        }
+
+        // Отрисовка вкладок
+        function renderTabs() {
+            const tabsContainer = document.getElementById('tabs');
+            const currentTabs = roles[currentRole];
+            
+            tabsContainer.innerHTML = currentTabs.map(tab => 
+                `<div class="tab ${tab === currentTab ? 'active' : ''}" onclick="switchTab('${tab}')">
+                    ${tabNames[tab]}
+                </div>`
+            ).join('');
+        }
+
+        // Переключение вкладки
+        function switchTab(tab) {
+            currentTab = tab;
+            renderTabs();
+            renderContent();
+        }
+
+        // Отрисовка контента
+        function renderContent() {
+            const content = document.getElementById('content');
+            
+            switch(currentTab) {
+                case 'dashboard':
+                    renderDashboard(content);
+                    break;
+                case 'orders':
+                    renderOrders(content);
+                    break;
+                case 'users':
+                    renderUsers(content);
+                    break;
+                case 'my-orders':
+                    renderMyOrders(content);
+                    break;
+                case 'clients':
+                    renderClients(content);
+                    break;
+                case 'reports':
+                    renderReports(content);
+                    break;
+                case 'catalog':
+                    renderCatalog(content);
+                    break;
+                case 'profile':
+                    renderProfile(content);
+                    break;
+                case 'settings':
+                    renderSettings(content);
+                    break;
+                case 'analytics':
+                    renderAnalytics(content);
+                    break;
+            }
+        }
+
+        // Дашборд
+        function renderDashboard(container) {
+            const stats = getStats();
+            container.innerHTML = `
+                <h3>Дашборд ${getRoleName(currentRole)}</h3>
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.totalOrders}</div>
+                        <div>Всего заказов</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.newOrders}</div>
+                        <div>Новых заказов</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.totalUsers}</div>
+                        <div>Пользователей</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.revenue} ₽</div>
+                        <div>Выручка</div>
+                    </div>
+                </div>
+                
+                <h4 style="margin-top: 30px;">Последние заказы</h4>
+                ${renderOrdersTable(orders.slice(0, 3), false)}
+                
+                <h4 style="margin-top: 30px;">Действия</h4>
+                <div style="margin-top: 15px;">
+                    ${currentRole === 'admin' ? '<button class="btn btn-primary" onclick="addUser()">Добавить пользователя</button>' : ''}
+                    ${currentRole === 'manager' ? '<button class="btn btn-primary" onclick="addOrder()">Создать заказ</button>' : ''}
+                    ${currentRole === 'client' ? '<button class="btn btn-primary" onclick="showCatalog()">Перейти в каталог</button>' : ''}
+                </div>
+            `;
+        }
+
+        // Таблица заказов
+        function renderOrders(container) {
+            container.innerHTML = `
+                <h3>Управление заказами</h3>
+                <div style="display: flex; justify-content: space-between; margin: 20px 0;">
+                    <input type="text" placeholder="Поиск заказов..." style="width: 300px;">
+                    <button class="btn btn-primary" onclick="addOrder()">Добавить заказ</button>
+                </div>
+                ${renderOrdersTable(orders, true)}
+            `;
+        }
+
+        // Мои заказы (для клиента)
+        function renderMyOrders(container) {
+            const myOrders = orders.filter(o => o.client === "Иванов Иван");
+            container.innerHTML = `
+                <h3>Мои заказы</h3>
+                ${renderOrdersTable(myOrders, false)}
+            `;
+        }
+
+        // Пользователи
+        function renderUsers(container) {
+            container.innerHTML = `
+                <h3>Управление пользователями</h3>
+                <button class="btn btn-primary" onclick="addUser()" style="margin: 15px 0;">Добавить пользователя</button>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Имя</th>
+                            <th>Email</th>
+                            <th>Роль</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(user => `
+                            <tr>
+                                <td>${user.id}</td>
+                                <td>${user.name}</td>
+                                <td>${user.email}</td>
+                                <td><span class="role-badge role-${user.role}">${getRoleName(user.role)}</span></td>
+                                <td>
+                                    <button class="btn btn-primary" onclick="editUser(${user.id})">Изменить</button>
+                                    <button class="btn btn-danger" onclick="deleteUser(${user.id})">Удалить</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Клиенты
+        function renderClients(container) {
+            const clients = users.filter(u => u.role === 'client');
+            container.innerHTML = `
+                <h3>Клиентская база</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Имя</th>
+                            <th>Email</th>
+                            <th>Заказов</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${clients.map(client => {
+                            const orderCount = orders.filter(o => o.client === client.name).length;
+                            return `
+                                <tr>
+                                    <td>${client.name}</td>
+                                    <td>${client.email}</td>
+                                    <td>${orderCount}</td>
+                                    <td>
+                                        <button class="btn btn-primary" onclick="viewClient(${client.id})">Просмотр</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Каталог
+        function renderCatalog(container) {
+            const products = [
+                { id: 1, name: "Ноутбук", price: 75000, category: "Техника" },
+                { id: 2, name: "Смартфон", price: 45000, category: "Техника" },
+                { id: 3, name: "Планшет", price: 32000, category: "Техника" },
+                { id: 4, name: "Наушники", price: 12000, category: "Аксессуары" }
+            ];
+            
+            container.innerHTML = `
+                <h3>Каталог товаров</h3>
+                <div style="display: flex; gap: 15px; margin: 20px 0;">
+                    <input type="text" placeholder="Поиск товаров..." style="flex: 1;">
+                    <select style="width: 200px;">
+                        <option>Все категории</option>
+                        <option>Техника</option>
+                        <option>Аксессуары</option>
+                    </select>
+                </div>
+                <div>
+                    ${products.map(product => `
+                        <div class="card">
+                            <h4>${product.name}</h4>
+                            <p>Категория: ${product.category}</p>
+                            <p>Цена: ${product.price} ₽</p>
+                            <button class="btn btn-success" onclick="addToCart(${product.id})">Добавить в корзину</button>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Настройки
+        function renderSettings(container) {
+            container.innerHTML = `
+                <h3>Настройки системы</h3>
+                <div class="form-group">
+                    <label>Название системы</label>
+                    <input type="text" value="OrderFlow">
+                </div>
+                <div class="form-group">
+                    <label>Валюта</label>
+                    <select>
+                        <option>Рубли (₽)</option>
+                        <option>Доллары ($)</option>
+                        <option>Евро (€)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Уведомления по email</label>
+                    <input type="checkbox" checked>
+                </div>
+                <button class="btn btn-primary">Сохранить настройки</button>
+            `;
+        }
+
+        // Отчеты
+        function renderReports(container) {
+            container.innerHTML = `
+                <h3>Отчеты</h3>
+                <div style="display: flex; gap: 15px; margin: 20px 0;">
+                    <input type="date" value="2024-01-01">
+                    <input type="date" value="2024-01-31">
+                    <button class="btn btn-primary">Сформировать отчет</button>
+                </div>
+                <div class="card">
+                    <h4>Отчет по продажам за период</h4>
+                    <p>Общая выручка: ${getStats().revenue} ₽</p>
+                    <p>Количество заказов: ${getStats().totalOrders}</p>
+                    <p>Средний чек: ${Math.round(getStats().revenue / getStats().totalOrders)} ₽</p>
+                </div>
+            `;
+        }
+
+        // Аналитика
+        function renderAnalytics(container) {
+            container.innerHTML = `
+                <h3>Аналитика</h3>
+                <div class="card">
+                    <h4>Ключевые показатели</h4>
+                    <p>Конверсия: 4.2%</p>
+                    <p>Среднее время обработки: 2.5 дня</p>
+                    <p>Повторные покупки: 32%</p>
+                </div>
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-primary">Экспорт данных</button>
+                </div>
+            `;
+        }
+
+        // Профиль
+        function renderProfile(container) {
+            container.innerHTML = `
+                <h3>Мой профиль</h3>
+                <div class="form-group">
+                    <label>Имя</label>
+                    <input type="text" value="Иванов Иван">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" value="client@mail.com">
+                </div>
+                <div class="form-group">
+                    <label>Телефон</label>
+                    <input type="tel" value="+7 (999) 123-45-67">
+                </div>
+                <button class="btn btn-primary">Сохранить изменения</button>
+            `;
+        }
+
+        // Вспомогательные функции
+        function getStats() {
+            return {
+                totalOrders: orders.length,
+                newOrders: orders.filter(o => o.status === 'new').length,
+                totalUsers: users.length,
+                revenue: orders.reduce((sum, o) => sum + (o.status !== 'cancelled' ? o.price : 0), 0)
+            };
+        }
+
+        function renderOrdersTable(ordersList, showActions) {
+            return `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Клиент</th>
+                            <th>Товар</th>
+                            <th>Дата</th>
+                            <th>Сумма</th>
+                            <th>Статус</th>
+                            ${showActions ? '<th>Действия</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${ordersList.map(order => `
+                            <tr>
+                                <td>${order.id}</td>
+                                <td>${order.client}</td>
+                                <td>${order.product}</td>
+                                <td>${order.date}</td>
+                                <td>${order.price} ₽</td>
+                                <td><span class="status status-${order.status}">${getStatusName(order.status)}</span></td>
+                                ${showActions ? `
+                                    <td>
+                                        <button class="btn btn-primary" onclick="editOrder(${order.id})">Изменить</button>
+                                        ${currentRole === 'admin' ? `<button class="btn btn-danger" onclick="deleteOrder(${order.id})">Удалить</button>` : ''}
+                                    </td>
+                                ` : ''}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function getRoleName(role) {
+            const names = {
+                admin: 'Администратор',
+                manager: 'Менеджер',
+                client: 'Клиент',
+                analyst: 'Аналитик'
+            };
+            return names[role] || role;
+        }
+
+        function getStatusName(status) {
+            const names = {
+                new: 'Новый',
+                processing: 'В обработке',
+                done: 'Выполнен',
+                cancelled: 'Отменен'
+            };
+            return names[status] || status;
+        }
+
+        // Модальные окна
+        function showRoleSelector() {
+            document.getElementById('roleModal').style.display = 'flex';
+        }
+
+        function setRole(role) {
+            currentRole = role;
+            document.getElementById('userRole').className = `role-badge role-${role}`;
+            document.getElementById('userRole').textContent = getRoleName(role);
+            currentTab = 'dashboard';
+            closeModal();
+            init();
+        }
+
+        function closeModal() {
+            document.getElementById('roleModal').style.display = 'none';
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+
+        function confirmAction(title, message, callback) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            document.getElementById('confirmActionBtn').onclick = () => {
+                callback();
+                closeModal();
+            };
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+
+        // Действия
+        function addOrder() {
+            alert('Форма добавления заказа');
+        }
+
+        function editOrder(id) {
+            alert(`Редактирование заказа #${id}`);
+        }
+
+        function deleteOrder(id) {
+            confirmAction(
+                'Удаление заказа',
+                `Вы уверены, что хотите удалить заказ #${id}?`,
+                () => {
+                    orders = orders.filter(o => o.id !== id);
+                    renderContent();
+                    alert('Заказ удален');
+                }
+            );
+        }
+
+        function addUser() {
+            alert('Форма добавления пользователя');
+        }
+
+        function editUser(id) {
+            alert(`Редактирование пользователя #${id}`);
+        }
+
+        function deleteUser(id) {
+            confirmAction(
+                'Удаление пользователя',
+                `Вы уверены, что хотите удалить пользователя #${id}?`,
+                () => {
+                    users = users.filter(u => u.id !== id);
+                    renderContent();
+                    alert('Пользователь удален');
+                }
+            );
+        }
+
+        function viewClient(id) {
+            const client = users.find(u => u.id === id);
+            alert(`Просмотр клиента: ${client.name}\nEmail: ${client.email}`);
+        }
+
+        function addToCart(productId) {
+            alert(`Товар #${productId} добавлен в корзину`);
+        }
+
+        function showCatalog() {
+            currentTab = 'catalog';
+            init();
+        }
+
+        // Запуск приложения
+        init();
+    </script>
+</body>
+</html>
