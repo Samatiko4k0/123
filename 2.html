@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>HarmoniQ</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial; background: #f5f5f5; padding: 20px; }
+        .header { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .tabs { 
+            background: white; 
+            padding: 10px; 
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .tab { 
+            padding: 10px 15px; 
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .tab.active { 
+            background: #4361ee; 
+            color: white;
+        }
+        .content { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px;
+            min-height: 400px;
+        }
+        .badge {
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: white;
+        }
+        .admin { background: #dc3545; }
+        .manager { background: #fd7e14; }
+        .client { background: #4361ee; }
+        .analyst { background: #28a745; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background: #f8f9fa; }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 8px; 
+            text-align: center;
+        }
+        .stat-value { font-size: 24px; font-weight: bold; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <!-- Шапка -->
+    <div class="header">
+        <h2>HarmoniQ</h2>
+        <div>
+            <span id="roleBadge" class="badge admin">Администратор</span>
+            <button onclick="showRoleSelect()" style="
+                background: #4361ee; 
+                color: white; 
+                border: none; 
+                padding: 8px 15px; 
+                border-radius: 4px; 
+                cursor: pointer; 
+                margin-left: 10px;
+            ">Сменить пользователя</button>
+        </div>
+    </div>
+
+    <!-- Панель навигации -->
+    <div class="tabs" id="tabsPanel">
+        <!-- Вкладки будут добавлены через JS -->
+    </div>
+
+    <!-- Контент -->
+    <div class="content" id="contentArea">
+        <!-- Содержимое будет обновляться через JS -->
+    </div>
+
+    <!-- Модальное окно для выбора роли -->
+    <div id="roleModal" style="
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5);
+        align-items: center;
+        justify-content: center;
+    ">
+        <div style="
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 300px;
+        ">
+            <h3 style="margin-bottom: 15px;">Выберите роль</h3>
+            <div style="margin-bottom: 15px;">
+                <button onclick="selectRole('admin')" style="
+                    background: #dc3545; 
+                    color: white; 
+                    border: none; 
+                    padding: 10px; 
+                    border-radius: 4px; 
+                    cursor: pointer;
+                    width: 100%;
+                    margin: 5px 0;
+                ">Администратор</button>
+                
+                <button onclick="selectRole('manager')" style="
+                    background: #fd7e14; 
+                    color: white; 
+                    border: none; 
+                    padding: 10px; 
+                    border-radius: 4px; 
+                    cursor: pointer;
+                    width: 100%;
+                    margin: 5px 0;
+                ">Менеджер</button>
+                
+                <button onclick="selectRole('client')" style="
+                    background: #4361ee; 
+                    color: white; 
+                    border: none; 
+                    padding: 10px; 
+                    border-radius: 4px; 
+                    cursor: pointer;
+                    width: 100%;
+                    margin: 5px 0;
+                ">Клиент</button>
+                
+                <button onclick="selectRole('analyst')" style="
+                    background: #28a745; 
+                    color: white; 
+                    border: none; 
+                    padding: 10px; 
+                    border-radius: 4px; 
+                    cursor: pointer;
+                    width: 100%;
+                    margin: 5px 0;
+                ">Аналитик</button>
+            </div>
+            <button onclick="hideModal()" style="
+                background: #6c757d; 
+                color: white; 
+                border: none; 
+                padding: 10px; 
+                border-radius: 4px; 
+                cursor: pointer;
+                width: 100%;
+            ">Закрыть</button>
+        </div>
+    </div>
+
+    <script>
+        // Всего 3 переменные
+        let role = 'admin';
+        let tab = 'dashboard';
+        
+        // Данные для отображения
+        const data = {
+            orders: [
+                {id: 1, client: "Иванов", product: "Ноутбук", price: 75000},
+                {id: 2, client: "Петров", product: "Телефон", price: 45000},
+                {id: 3, client: "Сидоров", product: "Планшет", price: 32000}
+            ],
+            users: [
+                {id: 1, name: "Админ", role: "admin"},
+                {id: 2, name: "Менеджер", role: "manager"},
+                {id: 3, name: "Клиент", role: "client"}
+            ]
+        };
+        
+        // Список вкладок для каждой роли
+        const tabs = {
+            admin: ['dashboard', 'orders', 'users'],
+            manager: ['dashboard', 'orders', 'clients'],
+            client: ['dashboard', 'myorders'],
+            analyst: ['dashboard', 'reports']
+        };
+        
+        // Названия вкладок
+        const tabNames = {
+            dashboard: 'Дашборд',
+            orders: 'Заказы',
+            users: 'Пользователи',
+            clients: 'Клиенты',
+            myorders: 'Мои заказы',
+            reports: 'Отчеты'
+        };
+        
+        // Названия ролей
+        const roleNames = {
+            admin: 'Администратор',
+            manager: 'Менеджер',
+            client: 'Клиент',
+            analyst: 'Аналитик'
+        };
+        
+        // Инициализация
+        function init() {
+            updateUI();
+        }
+        
+        // Обновление всего интерфейса
+        function updateUI() {
+            updateRoleBadge();
+            updateTabs();
+            updateContent();
+        }
+        
+        // Обновление бейджа роли
+        function updateRoleBadge() {
+            const badge = document.getElementById('roleBadge');
+            badge.textContent = roleNames[role];
+            badge.className = 'badge ' + role;
+        }
+        
+        // Обновление вкладок
+        function updateTabs() {
+            const tabsPanel = document.getElementById('tabsPanel');
+            const currentTabs = tabs[role] || ['dashboard'];
+            
+            tabsPanel.innerHTML = currentTabs.map(t => `
+                <div class="tab ${t === tab ? 'active' : ''}" onclick="switchTab('${t}')">
+                    ${tabNames[t] || t}
+                </div>
+            `).join('');
+        }
+        
+        // Переключение вкладки
+        function switchTab(newTab) {
+            tab = newTab;
+            updateTabs();
+            updateContent();
+        }
+        
+        // Обновление контента
+        function updateContent() {
+            const content = document.getElementById('contentArea');
+            
+            // Дашборд для всех
+            if (tab === 'dashboard') {
+                const total = data.orders.reduce((sum, o) => sum + o.price, 0);
+                content.innerHTML = `
+                    <h3>Дашборд</h3>
+                    <div class="stats">
+                        <div class="stat">
+                            <div>Заказы</div>
+                            <div class="stat-value">${data.orders.length}</div>
+                        </div>
+                        <div class="stat">
+                            <div>Пользователи</div>
+                            <div class="stat-value">${data.users.length}</div>
+                        </div>
+                        <div class="stat">
+                            <div>Выручка</div>
+                            <div class="stat-value">${total} ₽</div>
+                        </div>
+                    </div>
+                    <div class="stat">
+                        <div>Добавить заказ</div>
+                        <div class="stat-value">${total} ₽</div>
+                        </div>
+
+                
+                `;
+            }
+            
+            // Заказы
+            else if (tab === 'orders') {
+                content.innerHTML = `
+                    <h3>Заказы</h3>
+                    <table>
+                        <tr><th>ID</th><th>Клиент</th><th>Товар</th><th>Цена</th></tr>
+                        ${data.orders.map(o => `
+                            <tr>
+                                <td>${o.id}</td>
+                                <td>${o.client}</td>
+                                <td>${o.product}</td>
+                                <td>${o.price} ₽</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                `;
+            }
+            
+            // Пользователи
+            else if (tab === 'users') {
+                content.innerHTML = `
+                    <h3>Пользователи</h3>
+                    <table>
+                        <tr><th>ID</th><th>Имя</th><th>Роль</th></tr>
+                        ${data.users.map(u => `
+                            <tr>
+                                <td>${u.id}</td>
+                                <td>${u.name}</td>
+                                <td><span class="badge ${u.role}">${roleNames[u.role]}</span></td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                `;
+            }
+            
+            // Клиенты
+            else if (tab === 'clients') {
+                content.innerHTML = '<h3>Клиенты</h3><p>Список клиентов системы</p>';
+            }
+            
+            // Мои заказы
+            else if (tab === 'myorders') {
+                content.innerHTML = '<h3>Мои заказы</h3><p>История ваших заказов</p>';
+            }
+            
+            // Отчеты
+            else if (tab === 'reports') {
+                content.innerHTML = '<h3>Отчеты</h3><p>Аналитика и статистика</p>';
+            }
+            
+            // По умолчанию
+            else {
+                content.innerHTML = '<h3>Страница не найдена</h3>';
+            }
+        }
+        
+        // Показать выбор роли
+        function showRoleSelect() {
+            document.getElementById('roleModal').style.display = 'flex';
+        }
+        
+        // Выбрать роль
+        function selectRole(newRole) {
+            role = newRole;
+            tab = 'dashboard';
+            hideModal();
+            updateUI();
+        }
+        
+        // Скрыть модальное окно
+        function hideModal() {
+            document.getElementById('roleModal').style.display = 'none';
+        }
+        
+        // Закрытие модального окна при клике вне его
+        document.getElementById('roleModal').onclick = function(e) {
+            if (e.target.id === 'roleModal') hideModal();
+        };
+        
+        // Запуск при загрузке
+        window.onload = init;
+    </script>
+</body>
+</html>
